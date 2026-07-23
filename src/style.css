@@ -7,7 +7,7 @@
 :root {
   --bg1: #2b1055;
   --bg2: #7597de;
-  --card: #f1eef7;
+  --card: rgba(255, 255, 255, 0.92);
   --ink: #2d2350;
   --accent: #ff5d8f;
   --accent2: #ffd166;
@@ -351,23 +351,18 @@ body {
 /* ---------- sheet ---------- */
 
 .sheet-wrap {
-  /* Grow to the full table width (never an inner scroll region): when it's
-     wider than the viewport the PAGE scrolls horizontally and the card still
-     covers every player. There is only one scroll area — the page. */
+  /* shrink-to-fit the table (grows/shrinks with players), centered. When the
+     viewport is narrower than the table, scroll horizontally inside the card so
+     every player stays reachable and columns keep their 10em width. Vertical
+     stays content-sized, so the page still scrolls normally. */
   width: fit-content;
+  max-width: 100%;
   margin-inline: auto;
+  overflow-x: auto;
   background: var(--card);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   padding: 0.5rem;
-}
-
-/* pin the player-name header row to the viewport during page scroll */
-.sheet thead th {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: var(--card);
 }
 
 .sheet {
@@ -424,9 +419,6 @@ body {
 }
 
 .section-row td {
-  position: sticky;
-  top: var(--head-h, 3.5rem);
-  z-index: 2;
   text-align: left;
   font-weight: 800;
   color: #fff;
@@ -850,7 +842,7 @@ body {
 /* ---------- turn & starter markers ---------- */
 
 .player-head.on-turn {
-  background: #f6e4c4;
+  background: rgba(255, 209, 102, 0.35);
   border-color: var(--accent2);
 }
 
