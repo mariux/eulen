@@ -15,8 +15,8 @@ export interface AppState {
   scores: Record<string, ScoreSheet>;
   /** play order for the current game (player ids); index 0 starts */
   order: string[];
-  /** wins for the current game were already awarded */
-  winsAwarded: boolean;
+  /** final scores revealed -> wins awarded and sheet locked */
+  revealed: boolean;
   gamesPlayed: number;
   theme: ThemeId;
   lang: Lang;

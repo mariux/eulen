@@ -77,7 +77,7 @@ export const ROWS: RowDef[] = [
   },
   {
     id: "powerOwl", icon: "👑", section: "lower", kind: "fixed", fixedScore: 50,
-    label: { de: "Volle Eule", en: "Power Owl" },
+    label: { de: "Shots!!!", en: "Shots!!!" },
     hint: { de: "5 gleiche = 50 Punkte", en: "5 of a kind = 50 points" },
   },
   {

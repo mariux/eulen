@@ -2,7 +2,8 @@ import "./style.css";
 import type { AppState, RowDef } from "./types";
 import { ROWS, UPPER_ROWS, LOWER_ROWS, UPPER_BONUS, UPPER_BONUS_THRESHOLD } from "./rows";
 import { STRINGS } from "./i18n";
-import { diceSvg } from "./dice";
+import { diceSvg, patternHtml } from "./dice";
+import { confirmDialog, promptDialog } from "./modal";
 import {
   loadState,
   saveState,
@@ -10,16 +11,17 @@ import {
   removePlayer,
   newGame,
   orderedPlayers,
-  rankedPlayers,
+  highscore,
   currentTurnPlayerId,
   upperSum,
   hasBonus,
+  bonusStillPossible,
   lowerSum,
   grandTotal,
   sheetComplete,
   gameFinished,
   winners,
-  awardWinsIfFinished,
+  revealScores,
 } from "./state";
 
 const state: AppState = loadState();
@@ -32,10 +34,15 @@ function t() {
 }
 
 function commit(): void {
-  const justFinished = awardWinsIfFinished(state);
   saveState(state);
   render();
-  if (justFinished) launchConfetti();
+}
+
+function doReveal(): void {
+  if (revealScores(state)) {
+    commit();
+    launchConfetti();
+  }
 }
 
 // ---------- rendering ----------
@@ -48,7 +55,11 @@ function render(): void {
   if (state.players.length === 0) {
     app.append(renderEmptyState());
   } else {
-    if (gameFinished(state)) app.append(renderWinnerBanner());
+    if (state.revealed) {
+      app.append(renderWinnerBanner());
+    } else if (gameFinished(state)) {
+      app.append(renderRevealPrompt());
+    }
     app.append(renderSheet());
   }
   if (editing) app.append(renderEditor());
@@ -77,45 +88,41 @@ function renderHeader(): HTMLElement {
 function renderPlayerBar(): HTMLElement {
   const bar = el("section", "player-bar");
 
-  for (const p of rankedPlayers(state)) {
-    const chip = el("div", "player-chip");
-    const name = el("span", "player-chip-name", p.name);
-    const wins = el("span", "player-chip-wins", `🏆 ${p.wins}`);
-    wins.title = t().winsTitle(p.wins);
-    const remove = el("button", "player-chip-remove", "✕");
-    remove.title = t().removeTitle(p.name);
-    remove.addEventListener("click", () => {
-      if (confirm(t().removeConfirm(p.name, p.wins))) {
-        removePlayer(state, p.id);
+  // roster changes only between games (not once scores are revealed)
+  if (!state.revealed) {
+    const add = el("button", "btn btn-add", t().addPlayer);
+    add.type = "button";
+    add.addEventListener("click", async () => {
+      const name = await promptDialog({
+        title: t().addPlayerTitle,
+        placeholder: t().addPlayerPlaceholder,
+        confirmLabel: t().add,
+        cancelLabel: t().cancel,
+        maxLength: 10,
+      });
+      if (name) {
+        addPlayer(state, name);
         commit();
       }
     });
-    chip.append(name, wins, remove);
-    bar.append(chip);
+    bar.append(add);
   }
 
-  const form = el("form", "add-player-form") as HTMLFormElement;
-  const input = el("input", "add-player-input") as HTMLInputElement;
-  input.placeholder = t().addPlayerPlaceholder;
-  input.maxLength = 20;
-  const btn = el("button", "btn btn-add", t().addPlayer);
-  btn.type = "submit";
-  form.append(input, btn);
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = input.value.trim();
-    if (!name) return;
-    addPlayer(state, name);
-    commit();
-  });
-  bar.append(form);
-
   const reset = el("button", "btn btn-new-game", t().newGame);
-  reset.addEventListener("click", () => {
+  reset.addEventListener("click", async () => {
     const inProgress =
       !gameFinished(state) &&
       state.players.some((p) => ROWS.some((r) => state.scores[p.id][r.id] !== null));
-    if (inProgress && !confirm(t().unfinishedConfirm)) return;
+    if (inProgress) {
+      const ok = await confirmDialog({
+        title: t().newGameTitle,
+        message: t().unfinishedConfirm,
+        confirmLabel: t().startOver,
+        cancelLabel: t().cancel,
+        danger: true,
+      });
+      if (!ok) return;
+    }
     newGame(state);
     editing = null;
     commit();
@@ -152,7 +159,8 @@ function renderWinnerBanner(): HTMLElement {
   const ws = winners(state);
   const names = ws.map((w) => w.name).join(" & ");
   const score = grandTotal(state.scores[ws[0].id]);
-  banner.innerHTML = `<span class="winner-trophy">🏆</span>
+  const line = el("div", "winner-line");
+  line.innerHTML = `<span class="winner-trophy">🏆</span>
     <span class="winner-text">${escapeHtml(t().winnerText(names, score, ws.length > 1))}</span>
     <span class="winner-trophy">🎉</span>`;
   const again = el("button", "btn btn-play-again", t().playAgain);
@@ -160,8 +168,38 @@ function renderWinnerBanner(): HTMLElement {
     newGame(state);
     commit();
   });
-  banner.append(again);
+  banner.append(line, renderHighscore(), again);
   return banner;
+}
+
+function renderRevealPrompt(): HTMLElement {
+  const box = el("div", "reveal-prompt");
+  const text = el("div", "reveal-text");
+  text.innerHTML = `<strong>${escapeHtml(t().allFilled)}</strong> ${escapeHtml(t().revealQuestion)}`;
+  const btn = el("button", "btn btn-reveal", t().reveal);
+  btn.addEventListener("click", doReveal);
+  box.append(text, btn);
+  return box;
+}
+
+function renderHighscore(): HTMLElement {
+  const box = el("div", "highscore");
+  box.append(el("h2", "highscore-title", t().highscore));
+  const list = el("ol", "highscore-list");
+  const ranked = highscore(state);
+  const most = ranked.length ? ranked[0].wins : 0;
+  for (const [i, p] of ranked.entries()) {
+    const li = el("li", "highscore-row");
+    if (p.wins === most && most > 0) li.classList.add("highscore-top");
+    li.append(
+      el("span", "highscore-rank", `${i + 1}`),
+      el("span", "highscore-name", p.name),
+      el("span", "highscore-wins", `🏆 ${p.wins}`),
+    );
+    list.append(li);
+  }
+  box.append(list);
+  return box;
 }
 
 function renderSheet(): HTMLElement {
@@ -173,7 +211,7 @@ function renderSheet(): HTMLElement {
   // header row
   const thead = el("thead");
   const headRow = el("tr");
-  headRow.append(el("th", "row-label-head", t().category));
+  headRow.append(el("th", "row-label-head"));
   const leaderIds = currentLeaderIds();
   for (const p of players) {
     const th = el("th", "player-head");
@@ -181,7 +219,25 @@ function renderSheet(): HTMLElement {
     const total = el("div", "player-head-total", `${grandTotal(state.scores[p.id])} ${t().points}`);
     if (leaderIds.has(p.id)) th.classList.add("leading");
     th.append(name, total);
-    if (p.id === turnId) {
+    if (!state.revealed) {
+      const remove = el("button", "player-remove", "✕");
+      remove.title = t().removeTitle(p.name);
+      remove.addEventListener("click", async () => {
+        const ok = await confirmDialog({
+          title: t().removeTitle(p.name),
+          message: t().removeConfirm(p.name, p.wins),
+          confirmLabel: t().remove,
+          cancelLabel: t().cancel,
+          danger: true,
+        });
+        if (ok) {
+          removePlayer(state, p.id);
+          commit();
+        }
+      });
+      th.append(remove);
+    }
+    if (p.id === turnId && !state.revealed) {
       th.classList.add("on-turn");
       th.append(el("div", "turn-badge", t().turn));
     }
@@ -194,17 +250,17 @@ function renderSheet(): HTMLElement {
   const tbody = el("tbody");
   tbody.append(sectionRow(t().upperSection));
   for (const row of UPPER_ROWS) tbody.append(scoreRow(row, players, turnId));
-  tbody.append(derivedRow(t().sum, "🧮", players, (pid) => `${upperSum(state.scores[pid])}`));
+  tbody.append(derivedRow(t().sum, players, (pid) => `${upperSum(state.scores[pid])}`));
   tbody.append(bonusRow(players));
   tbody.append(
-    derivedRow(t().upperTotal, "⬆️", players, (pid) => {
+    derivedRow(t().upperTotal, players, (pid) => {
       const s = state.scores[pid];
       return `${upperSum(s) + (hasBonus(s) ? UPPER_BONUS : 0)}`;
     }),
   );
   tbody.append(sectionRow(t().lowerSection));
   for (const row of LOWER_ROWS) tbody.append(scoreRow(row, players, turnId));
-  tbody.append(derivedRow(t().lowerTotal, "⬇️", players, (pid) => `${lowerSum(state.scores[pid])}`));
+  tbody.append(derivedRow(t().lowerTotal, players, (pid) => `${lowerSum(state.scores[pid])}`));
   tbody.append(totalRow(players));
   table.append(tbody);
 
@@ -233,17 +289,22 @@ function scoreRow(row: RowDef, players: ReturnType<typeof orderedPlayers>, turnI
   const tr = el("tr", "score-row");
   const label = el("td", "row-label");
   const labelMain = el("div", "row-label-main");
-  labelMain.innerHTML = `<span class="row-icon">${row.icon}</span> ${row.label[state.lang]}`;
-  if (row.id === "onePair" || row.id === "twoPairs") {
-    labelMain.append(el("span", "house-rule-badge", t().houseRule));
+  const iconSpan = el("span", "row-icon");
+  if (row.section === "lower") {
+    iconSpan.classList.add("dice-pattern");
+    iconSpan.dataset.row = row.id;
+    iconSpan.innerHTML = patternHtml(row.id);
+  } else {
+    iconSpan.innerHTML = row.icon;
   }
-  label.append(labelMain, el("div", "row-hint", row.hint[state.lang]));
+  labelMain.append(iconSpan, document.createTextNode(` ${row.label[state.lang]}`));
+  label.append(labelMain);
   tr.append(label);
 
   for (const p of players) {
     const value = state.scores[p.id][row.id];
     const td = el("td", "score-cell");
-    if (p.id === turnId) td.classList.add("turn-col");
+    if (p.id === turnId && !state.revealed) td.classList.add("turn-col");
     const btn = el("button", "cell-btn");
     if (value === null) {
       btn.classList.add("cell-empty");
@@ -255,10 +316,15 @@ function scoreRow(row: RowDef, players: ReturnType<typeof orderedPlayers>, turnI
       btn.classList.add("cell-filled");
       btn.textContent = String(value);
     }
-    btn.addEventListener("click", () => {
-      editing = { playerId: p.id, rowId: row.id };
-      render();
-    });
+    if (state.revealed) {
+      btn.classList.add("cell-locked");
+      btn.disabled = true;
+    } else {
+      btn.addEventListener("click", () => {
+        editing = { playerId: p.id, rowId: row.id };
+        render();
+      });
+    }
     td.append(btn);
     tr.append(td);
   }
@@ -267,13 +333,11 @@ function scoreRow(row: RowDef, players: ReturnType<typeof orderedPlayers>, turnI
 
 function derivedRow(
   label: string,
-  icon: string,
   players: ReturnType<typeof orderedPlayers>,
   valueFor: (playerId: string) => string,
 ): HTMLElement {
   const tr = el("tr", "derived-row");
-  const td = el("td", "row-label");
-  td.innerHTML = `<span class="row-icon">${icon}</span> ${label}`;
+  const td = el("td", "row-label", label);
   tr.append(td);
   for (const p of players) {
     tr.append(el("td", "derived-cell", valueFor(p.id)));
@@ -283,8 +347,7 @@ function derivedRow(
 
 function bonusRow(players: ReturnType<typeof orderedPlayers>): HTMLElement {
   const tr = el("tr", "derived-row bonus-row");
-  const td = el("td", "row-label");
-  td.innerHTML = `<span class="row-icon">🎁</span> ${t().bonus} <div class="row-hint">${t().bonusHint}</div>`;
+  const td = el("td", "row-label", t().bonus);
   tr.append(td);
   for (const p of players) {
     const sheet = state.scores[p.id];
@@ -292,10 +355,14 @@ function bonusRow(players: ReturnType<typeof orderedPlayers>): HTMLElement {
     if (hasBonus(sheet)) {
       cell.textContent = `+${UPPER_BONUS} 🎉`;
       cell.classList.add("bonus-earned");
+    } else if (!bonusStillPossible(sheet)) {
+      cell.textContent = "✗";
+      cell.classList.add("bonus-missed");
     } else {
       const sum = upperSum(sheet);
       const pct = Math.min(100, Math.round((sum / UPPER_BONUS_THRESHOLD) * 100));
-      cell.innerHTML = `<div class="bonus-progress"><div class="bonus-progress-fill" style="width:${pct}%"></div></div><span class="bonus-progress-label">${sum}/${UPPER_BONUS_THRESHOLD}</span>`;
+      const hue = Math.round(pct * 1.2); // 0% red -> ~green as it fills
+      cell.innerHTML = `<div class="bonus-progress"><div class="bonus-progress-fill" style="width:${pct}%;background:hsl(${hue},75%,45%)"></div></div><span class="bonus-progress-label">${sum}/${UPPER_BONUS_THRESHOLD}</span>`;
     }
     tr.append(cell);
   }
@@ -435,3 +502,13 @@ function escapeHtml(s: string): string {
 }
 
 render();
+
+// Re-roll every lower-section dice pattern on an interval. A single timer
+// updates whatever ".dice-pattern" nodes currently exist, so it survives
+// re-renders without leaking listeners.
+setInterval(() => {
+  document.querySelectorAll<HTMLElement>(".dice-pattern").forEach((node) => {
+    const rowId = node.dataset.row;
+    if (rowId) node.innerHTML = patternHtml(rowId);
+  });
+}, 3600);

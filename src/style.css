@@ -197,17 +197,31 @@ body {
 
 .winner-banner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 1rem;
   background: linear-gradient(90deg, var(--accent2), #ff9f1c);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1.2rem;
   font-size: 1.3rem;
   font-weight: 800;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
   animation: pop 0.5s ease;
+}
+
+.winner-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+/* highscore nested inside the winner box: don't inherit the big bold font */
+.winner-banner .highscore {
+  font-size: 1rem;
+  font-weight: 400;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .winner-trophy {
@@ -218,6 +232,109 @@ body {
 .btn-play-again {
   background: var(--ink);
   color: #fff;
+}
+
+/* ---------- reveal prompt ---------- */
+
+.reveal-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  background: linear-gradient(90deg, var(--accent3), var(--accent2));
+  border-radius: var(--radius);
+  padding: 1.3rem;
+  text-align: center;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+  animation: pop 0.4s ease;
+}
+
+.reveal-text {
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.btn-reveal {
+  background: var(--ink);
+  color: #fff;
+  font-size: 1.15rem;
+  padding: 0.7rem 1.8rem;
+}
+
+/* ---------- highscore ---------- */
+
+.highscore {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 1rem 1.2rem;
+}
+
+.highscore-title {
+  text-align: center;
+  margin-bottom: 0.7rem;
+}
+
+.highscore-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 15rem;
+}
+
+.highscore-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+}
+
+.highscore-row.highscore-top {
+  background: var(--accent2);
+}
+
+.highscore-rank {
+  width: 1.4rem;
+  text-align: right;
+  opacity: 0.55;
+}
+
+.highscore-name {
+  flex: 1;
+}
+
+/* ---------- player remove ✕ (in header) ---------- */
+
+.player-remove {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #b0a8c8;
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.player-remove:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cell-locked {
+  cursor: default;
 }
 
 @keyframes pop {
@@ -234,7 +351,12 @@ body {
 /* ---------- sheet ---------- */
 
 .sheet-wrap {
-  overflow-x: auto;
+  /* shrink-to-fit the table (grows/shrinks with players), centered. No
+     overflow here: setting overflow-x also forces overflow-y, which would turn
+     the card into a scroll region and break normal page scrolling. */
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
   background: var(--card);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -242,9 +364,9 @@ body {
 }
 
 .sheet {
-  border-collapse: collapse;
-  width: 100%;
-  min-width: 520px;
+  border-collapse: separate;
+  border-spacing: 4px 0;
+  width: auto;
 }
 
 .sheet th,
@@ -263,25 +385,27 @@ body {
 
 .player-head {
   position: relative;
-  min-width: 92px;
+  width: 10em;
+  border: 2px solid #cfc6e8;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
 }
 
 .player-head-name {
   font-weight: 800;
   font-size: 1.05rem;
+  max-width: 100%;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 10rem;
+  margin: 0 auto;
+  text-align: center;
 }
 
 .player-head-total {
   font-size: 0.8rem;
   color: var(--accent4);
   font-weight: 700;
-}
-
-.player-head.leading .player-head-name {
-  color: #c47f00;
 }
 
 .player-head-crown {
@@ -315,21 +439,6 @@ body {
 
 .row-icon {
   font-size: 1.1rem;
-}
-
-.row-hint {
-  font-size: 0.72rem;
-  opacity: 0.55;
-}
-
-.house-rule-badge {
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.6rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .score-row:nth-child(even) {
@@ -368,14 +477,22 @@ body {
 
 .cell-struck {
   border-style: solid;
-  border-color: var(--struck);
-  background: #f4f2f9;
-  color: var(--struck);
+  border-color: #e5484d;
+  background: #fdecec;
+  color: #e5484d;
 }
 
 .derived-row {
   background: rgba(255, 209, 102, 0.15);
-  font-weight: 700;
+}
+
+/* separator line above each section's sum block */
+.score-row + .derived-row td {
+  border-top: 2px solid rgba(45, 35, 80, 0.3);
+}
+
+.derived-row .row-label {
+  text-align: right;
 }
 
 .derived-cell {
@@ -383,8 +500,12 @@ body {
 }
 
 .bonus-earned {
-  color: #c47f00;
   animation: pop 0.4s ease;
+}
+
+.bonus-missed {
+  color: #e5484d;
+  font-weight: 800;
 }
 
 .bonus-progress {
@@ -464,6 +585,35 @@ body {
   margin: 0.3rem 0 1rem;
 }
 
+.dialog-message {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.name-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+
+.name-input {
+  width: 100%;
+  border: 2px solid #e4ddf5;
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.name-input.shake {
+  animation: shake 0.35s ease;
+  border-color: var(--accent);
+}
+
+/* keep the bonus progress bar centered; only real sums/totals go right */
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -525,6 +675,14 @@ body {
   font: inherit;
   font-size: 1.1rem;
   font-weight: 700;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.sum-input::-webkit-outer-spin-button,
+.sum-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .sum-input.shake {
@@ -631,12 +789,58 @@ body {
   vertical-align: -0.25em;
 }
 
+.die-svg .die-q {
+  fill: var(--accent4);
+  font-weight: 900;
+  font-size: 62px;
+  font-family: system-ui, sans-serif;
+}
+
+/* ---------- animated combo dice (lower section) ---------- */
+
+.dice-pattern {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.dice-pattern .die-svg {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: middle;
+}
+
+/* only the meaningful dice roll; wildcard "?" dice stay put */
+.dice-pattern .die-svg:not(.die-wild) {
+  animation: die-roll 0.7s ease;
+}
+
+.die-svg .die-strike {
+  stroke: #1f1f1f;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+@keyframes die-roll {
+  from {
+    transform: rotate(-120deg);
+  }
+  to {
+    transform: rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-pattern .die-svg {
+    animation: none;
+  }
+}
+
 /* ---------- turn & starter markers ---------- */
 
 .player-head.on-turn {
   background: rgba(255, 209, 102, 0.35);
-  border-radius: 12px 12px 0 0;
-  box-shadow: inset 0 0 0 2px var(--accent2);
+  border-color: var(--accent2);
 }
 
 .turn-badge {
@@ -767,13 +971,17 @@ html[data-theme="mark"] .score-row:nth-child(even) {
   background: #f6f3ea;
 }
 
-html[data-theme="mark"] .player-head-total,
-html[data-theme="mark"] .player-head.leading .player-head-name {
+html[data-theme="mark"] .player-head-total {
   color: #1f1f1f;
 }
 
-html[data-theme="mark"] .house-rule-badge {
-  background: #666;
+html[data-theme="mark"] .player-head {
+  border-radius: 3px 3px 0 0;
+  border-color: #b5ae9f;
+}
+
+html[data-theme="mark"] .score-row + .derived-row td {
+  border-top-color: #b5ae9f;
 }
 
 html[data-theme="mark"] .cell-btn {
@@ -848,7 +1056,8 @@ html[data-theme="mark"] .chip-hit {
   border-color: #1f1f1f;
 }
 
-html[data-theme="mark"] .sum-input {
+html[data-theme="mark"] .sum-input,
+html[data-theme="mark"] .name-input {
   border: 1px solid #b5ae9f;
   border-radius: 4px;
 }
@@ -863,10 +1072,13 @@ html[data-theme="mark"] .die-svg .die-pips circle {
   fill: #1f1f1f;
 }
 
+html[data-theme="mark"] .die-svg .die-q {
+  fill: #1f1f1f;
+}
+
 html[data-theme="mark"] .player-head.on-turn {
   background: #e9e4d6;
-  border-radius: 4px 4px 0 0;
-  box-shadow: inset 0 0 0 2px #1f1f1f;
+  border-color: #1f1f1f;
 }
 
 html[data-theme="mark"] .turn-badge {

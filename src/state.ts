@@ -20,6 +20,7 @@ export function loadState(): AppState {
       }
       parsed.theme ??= "party";
       parsed.lang ??= "de";
+      parsed.revealed ??= false;
       // keep the play order consistent with the player list
       const order = (parsed.order ?? []).filter((id) => parsed.players.some((p) => p.id === id));
       for (const p of parsed.players) if (!order.includes(p.id)) order.push(p.id);
@@ -29,7 +30,7 @@ export function loadState(): AppState {
   } catch {
     // corrupted storage -> start fresh
   }
-  return { players: [], scores: {}, order: [], winsAwarded: false, gamesPlayed: 0, theme: "party", lang: "de" };
+  return { players: [], scores: {}, order: [], revealed: false, gamesPlayed: 0, theme: "party", lang: "de" };
 }
 
 export function saveState(state: AppState): void {
@@ -65,20 +66,13 @@ function shuffle<T>(arr: T[]): void {
 export function newGame(state: AppState): void {
   for (const p of state.players) state.scores[p.id] = emptySheet();
   shuffle(state.order);
-  state.winsAwarded = false;
+  state.revealed = false;
 }
 
 /** Players in play order (sheet columns). */
 export function orderedPlayers(state: AppState): Player[] {
   const byId = new Map(state.players.map((p) => [p.id, p]));
   return state.order.map((id) => byId.get(id)).filter((p): p is Player => p !== undefined);
-}
-
-/** Player chips: most wins first, ties alphabetical. */
-export function rankedPlayers(state: AppState): Player[] {
-  return [...state.players].sort(
-    (a, b) => b.wins - a.wins || a.name.localeCompare(b.name, state.lang),
-  );
 }
 
 export function filledCount(sheet: ScoreSheet): number {
@@ -108,6 +102,19 @@ export function hasBonus(sheet: ScoreSheet): boolean {
   return upperSum(sheet) >= UPPER_BONUS_THRESHOLD;
 }
 
+/**
+ * Can the upper bonus still be reached? Empty upper rows can contribute at
+ * most 5×face; if even that best case falls short, the bonus is lost.
+ */
+export function bonusStillPossible(sheet: ScoreSheet): boolean {
+  let max = 0;
+  for (const r of UPPER_ROWS) {
+    const v = sheet[r.id];
+    max += v !== null ? v : 5 * (r.face ?? 0);
+  }
+  return max >= UPPER_BONUS_THRESHOLD;
+}
+
 export function lowerSum(sheet: ScoreSheet): number {
   return LOWER_ROWS.reduce((sum, r) => sum + (sheet[r.id] ?? 0), 0);
 }
@@ -131,11 +138,21 @@ export function winners(state: AppState): Player[] {
   return state.players.filter((p) => grandTotal(state.scores[p.id]) === best);
 }
 
-/** Award wins exactly once per finished game. Returns true if awarded now. */
-export function awardWinsIfFinished(state: AppState): boolean {
-  if (state.winsAwarded || !gameFinished(state)) return false;
+/**
+ * Reveal the final scores: award each winner a win (once) and lock the sheet.
+ * Returns true if this call performed the reveal.
+ */
+export function revealScores(state: AppState): boolean {
+  if (state.revealed || !gameFinished(state)) return false;
   for (const w of winners(state)) w.wins += 1;
-  state.winsAwarded = true;
   state.gamesPlayed += 1;
+  state.revealed = true;
   return true;
+}
+
+/** Players ranked by total wins (desc), ties alphabetical — the highscore. */
+export function highscore(state: AppState): Player[] {
+  return [...state.players].sort(
+    (a, b) => b.wins - a.wins || a.name.localeCompare(b.name, state.lang),
+  );
 }
