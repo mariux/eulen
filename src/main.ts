@@ -48,8 +48,6 @@ function doReveal(): void {
 // ---------- rendering ----------
 
 function render(): void {
-  // preserve the sheet's horizontal scroll across full re-renders
-  const prevScrollLeft = app.querySelector<HTMLElement>(".sheet-wrap")?.scrollLeft ?? 0;
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = state.lang;
   app.innerHTML = "";
@@ -64,8 +62,10 @@ function render(): void {
     }
     app.append(renderSheet());
   }
+  // section headers stick just below the (variable-height) name header row
+  const thead = app.querySelector<HTMLElement>(".sheet thead");
   const wrap = app.querySelector<HTMLElement>(".sheet-wrap");
-  if (wrap) wrap.scrollLeft = prevScrollLeft;
+  if (thead && wrap) wrap.style.setProperty("--head-h", `${thead.offsetHeight}px`);
   if (editing) app.append(renderEditor());
 }
 
