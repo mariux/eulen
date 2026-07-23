@@ -351,12 +351,14 @@ body {
 /* ---------- sheet ---------- */
 
 .sheet-wrap {
-  /* shrink-to-fit the table (grows/shrinks with players), centered. No
-     overflow here: setting overflow-x also forces overflow-y, which would turn
-     the card into a scroll region and break normal page scrolling. */
+  /* shrink-to-fit the table (grows/shrinks with players), centered. When the
+     viewport is narrower than the table, scroll horizontally inside the card so
+     every player stays reachable and columns keep their 10em width. Vertical
+     stays content-sized, so the page still scrolls normally. */
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
+  overflow-x: auto;
   background: var(--card);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -386,6 +388,7 @@ body {
 .player-head {
   position: relative;
   width: 10em;
+  min-width: 10em;
   border: 2px solid #cfc6e8;
   border-bottom: none;
   border-radius: 10px 10px 0 0;
