@@ -48,6 +48,8 @@ function doReveal(): void {
 // ---------- rendering ----------
 
 function render(): void {
+  // preserve the sheet's horizontal scroll across full re-renders
+  const prevScrollLeft = app.querySelector<HTMLElement>(".sheet-wrap")?.scrollLeft ?? 0;
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = state.lang;
   app.innerHTML = "";
@@ -62,6 +64,8 @@ function render(): void {
     }
     app.append(renderSheet());
   }
+  const wrap = app.querySelector<HTMLElement>(".sheet-wrap");
+  if (wrap) wrap.scrollLeft = prevScrollLeft;
   if (editing) app.append(renderEditor());
 }
 
